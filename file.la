@@ -1,0 +1,3 @@
+print('Hello, world')
+print(256/2/2 + 2)
+print("Good morning!")
