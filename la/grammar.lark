@@ -2,7 +2,12 @@ LETTER: ("a".."z") | ("A".."Z")
 DIGIT: ("0".."9")
 _WHITESPACE: (" " | "\n" | "\t")+
 
-OPERATOR: "==" | "+" | "-" | "/" | "*" | " cat " | " rep " | "." | ":"
+OPERATOR: "**"
+    | "==" | "!=" | "<" | ">" | ">=" | "<="
+    | " or " | " and " | " not " | " xor "
+    | "+" | "-" | "/" | "*" 
+    | " cat " | " rep "
+    | "." | ":"
 operator: OPERATOR
 
 VARIABLE_NAME: LETTER ( LETTER | DIGIT | "_" )*
@@ -10,11 +15,11 @@ VARIABLE_NAME: LETTER ( LETTER | DIGIT | "_" )*
 
 start: codeblock
 
-codeblock: _WHITESPACE? "{" executable (";" executable)* "}"
+codeblock: _WHITESPACE? "{" executable (";" executable)* [";"] "}"
 
 executable:  (
-    | [VARIABLE_NAME  _WHITESPACE? "=" _WHITESPACE?]  evaluatable 
-    | [codeblock_prefix] codeblock )
+    | [codeblock_prefix] codeblock 
+    | [VARIABLE_NAME  _WHITESPACE? "=" _WHITESPACE?]  evaluatable )
 
 evaluatable: VARIABLE_NAME 
     | function_call
@@ -48,9 +53,15 @@ single_quote_string: ("'" SINGLE_QUOTE_DATA "'" ) | "''"
 
 string: double_quote_string | single_quote_string
 
-codeblock_prefix: codeblock_prefix_nocolon [";"]
+codeblock_prefix: codeblock_prefix_nocolon ";"
 
-codeblock_prefix_nocolon: "if" _WHITESPACE evaluatable
+IF_CBPREFIX: "if"
+FOR_CBPREFIX: "for"
+WHILE_CBPREFIX: "while"
+SCOPE_CBPREFIX: "scope"
+PRAGMA_CBPREFIX: "pragma"
+
+codeblock_prefix_nocolon: IF_CBPREFIX _WHITESPACE+ evaluatable
     | "for" _WHITESPACE VARIABLE_NAME _WHITESPACE "in" _WHITESPACE evaluatable
     | "while" _WHITESPACE evaluatable
     | "scope" _WHITESPACE VARIABLE_NAME

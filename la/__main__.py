@@ -5,8 +5,8 @@ import logging
 from lark import Lark, Tree, Token
 
 from .parse_tabs import tabs_to_codeblocks
-from .la_builtins import LaBuiltins, LaInteger, LaBoolean
-import la.errors
+from .la_builtins import LaBuiltins, LaInteger, LaBoolean, LaString, LaFunction
+import la.errors as errors
 
 
 grammar = open("la/grammar.lark", "r").read()
@@ -14,6 +14,8 @@ grammar = open("la/grammar.lark", "r").read()
 code = tabs_to_codeblocks(open("file.la").read())
 
 text = "{" + code + "}"
+
+#print(text)
 
 parser = Lark(grammar, 
     ambiguity="explicit",
@@ -29,24 +31,25 @@ precedence = {
     " rep ": 1,
     "*": 1,
     "/": 1,
-    ".": 0,
-    ":": -1,
+    "**": 0,
+    ".": -1,
+    ":": -2,
 
 }
 
 operators = {
-    "+": lambda a, b: a + b,
-    "*": lambda a, b: a * b,
-    "-": lambda a, b: a - b,
-    "/": lambda a, b: a / b,
+    "+": lambda a, b: a.__la_add__(b),
+    "*": lambda a, b: a.__la_mul__(b),
+    "-": lambda a, b: a.__la_sub__(b),
+    "/": lambda a, b: a.__la_div__(b),
+    "**": lambda a, b: a.__la_pow__(b),
+    " cat ": lambda a, b: a.__la_cat__(b),
+    " rep ": lambda a, b: a.__la_rep__(b),
+    ".": lambda a, b: a.__la_getattr__(b),
+    ":": lambda a, b: a.__la_getiattr__(b),
+    "==": lambda a, b: a.__la_eq__(b),
 }
 
-class LaVariable:
-    pass
-
-class LaFunction(LaVariable):
-    def __la_call__(self, args):
-        pass
 
 def checkCorrectPrecedence(tree, currentPrecedence = None, currentPos = -2**31):
 
@@ -93,18 +96,19 @@ def resolveAmbig(tree):
         return False    
 
 def executeFunction(function: LaFunction, args):
-    function.__la_call__(args)
+    args = [('', i) for i in args]
+    return function.__la_call__(args)
 
 def evaluate(tree: Tree, env: dict):
     if isinstance(tree, Token):
         if tree.type == "VARIABLE_NAME":
             return env[str(tree)] 
         elif tree.type == "SINGLE_QUOTE_DATA":
-            return str(tree)
+            return LaString(tree)
         elif tree.type == "DOUBLE_QUOTE_DATA":
-            return str(tree)
+            return LaString(tree)
         elif tree.type == "DECIMAL_NUMBER":
-            return int(tree)
+            return LaInteger(int(tree))
         raise errors.UnimplementedTokenError(tree.type)
 
     if len(tree.children) == 1:
@@ -123,7 +127,15 @@ def evaluate(tree: Tree, env: dict):
             evaluate(tree.children[2], env),
             )
 
+def assignVariable(output, value, env):
+    if isinstance(output, Token):
+        env[str(output)] = evaluate(value, env)
 
+def run_prefixed_codeblock(tree: Tree, env: dict, func):
+    FUNCS = {
+        "if": lambda: func(env) if evaluate(tree.children[1], env) else None
+    }
+    FUNCS[tree.children[0]]()
 
 def run_codeblock(tree: Tree, env: dict):
     assert tree.data == "codeblock"
@@ -131,7 +143,21 @@ def run_codeblock(tree: Tree, env: dict):
         if i.data == "_ambig":
             i = resolveAmbig(i)
         assert i.data == "executable"
-        if len(i.children) == 1 and i.children[0].data == "evaluatable":
+        assert isinstance(i, Tree)
+        if i.meta.empty:
+            pass
+        elif len(i.children) == 1 and i.children[0].data == "evaluatable":
             evaluate(i.children[0], env)
+        elif len(i.children) == 2 and i.children[1].data == "evaluatable":
+            assignVariable(i.children[0], i.children[1], env)
+        elif len(i.children) == 1 and i.children[0].data == "codeblock":
+           run_codeblock(i.children[0], env)
+        elif len(i.children) == 2 and i.children[1].data == "codeblock" and i.children[0].data == "codeblock_prefix":
+            ttree = i.children[0].children[0]
+            func = lambda env: run_codeblock(i.children[1], env)
+            run_prefixed_codeblock(ttree, env, func)
 
-run_codeblock(tree.children[0], LaBuiltins.__dict__)
+        else:
+            raise errors.InvalidExecutableStatement(text[i.meta.start_pos:i.meta.end_pos])
+
+run_codeblock(tree.children[0], dict(LaBuiltins.__dict__))

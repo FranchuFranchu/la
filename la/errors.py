@@ -7,3 +7,9 @@ class CompileTimeError(LaError):
 
 class UnimplementedTokenError(CompileTimeError):
     pass
+
+class InvalidExecutableStatement(CompileTimeError):
+    pass
+
+class InvalidVariableName(CompileTimeError):
+    pass
