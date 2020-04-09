@@ -22,7 +22,6 @@ class LaFunction(LaVariable):
     def __la_call__(self, args: List[Tuple[str, LaVariable]]):
         free_arguments = self.arguments.copy()
         final_args = {}
-
         for key, value in args:
             if key == "":
                 final_args[free_arguments[0].name] = value
@@ -93,4 +92,5 @@ class LaBuiltins:
     @LaFunctionDecorator()
     def input(args):
         pass
+
         

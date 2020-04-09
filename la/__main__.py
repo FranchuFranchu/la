@@ -5,7 +5,7 @@ import logging
 from lark import Lark, Tree, Token
 
 from .parse_tabs import tabs_to_codeblocks
-from .la_builtins import LaBuiltins, LaInteger, LaBoolean, LaString, LaFunction
+from .la_builtins import LaBuiltins, LaInteger, LaBoolean, LaString, LaFunction, LaArgument
 import la.errors as errors
 
 
@@ -15,7 +15,7 @@ code = tabs_to_codeblocks(open("file.la").read())
 
 text = "{" + code + "}"
 
-#print(text)
+print(text)
 
 parser = Lark(grammar, 
     ambiguity="explicit",
@@ -132,10 +132,24 @@ def assignVariable(output, value, env):
         env[str(output)] = evaluate(value, env)
 
 def run_prefixed_codeblock(tree: Tree, env: dict, func):
+    codeblock_func = func
+    def _def_func(env):
+        def _internal_func(args: dict):
+            env2 = {**env, **args}
+            codeblock_func(env2)
+
+        args = []
+        for i in tree.children[2].children:
+            args.append(LaArgument(name=i))
+
+        env[tree.children[1]] = LaFunction(_internal_func, args)
+    def _if_func(env):
+        func(env) if evaluate(tree.children[1], env) else None
     FUNCS = {
-        "if": lambda: func(env) if evaluate(tree.children[1], env) else None
+        "if": _if_func,
+        "function": _def_func,
     }
-    FUNCS[tree.children[0]]()
+    FUNCS[tree.children[0]](env)
 
 def run_codeblock(tree: Tree, env: dict):
     assert tree.data == "codeblock"
@@ -154,7 +168,8 @@ def run_codeblock(tree: Tree, env: dict):
            run_codeblock(i.children[0], env)
         elif len(i.children) == 2 and i.children[1].data == "codeblock" and i.children[0].data == "codeblock_prefix":
             ttree = i.children[0].children[0]
-            func = lambda env: run_codeblock(i.children[1], env)
+            code_block = i.children[1]
+            func = lambda env: run_codeblock(code_block, env)
             run_prefixed_codeblock(ttree, env, func)
 
         else:

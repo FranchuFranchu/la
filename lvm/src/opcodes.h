@@ -1,0 +1,10 @@
+#define OPCODE_EXIT_TO_SYSTEM 0
+#define OPCODE_MOV 1
+#define OPCODE_DEBUG_DUMP_OPERATOR_0 2
+
+
+char opcode_argcount[256] = {
+    0, // OPCODE_EXIT_TO_SYSTEM
+    2, // OPCODE_MOV
+    2, // OPCODE_DEBUG_DUMP_OPERATOR_0
+};

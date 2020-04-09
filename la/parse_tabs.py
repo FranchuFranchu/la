@@ -20,6 +20,7 @@ def tabs_to_codeblocks(d):
                     for i in range(-difference):
                         code.insert(list_index,"}")
                         list_index += 1
+                    code.insert(list_index, ";")
                 current_indentation = this_line_indentation
 
         if not at_newline:
