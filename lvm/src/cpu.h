@@ -1,9 +1,14 @@
 #include <stdint.h>
-#include "memory.h"
 #include <stdbool.h>
+
+#include "memory.h"
 
 #ifndef CPU_H
 #define CPU_H
+
+#define CLEAR_FLAG(cpu,shift) cpu->registers.flags &= ~(1 << shift)
+#define SET_FLAG(cpu,shift) cpu->registers.flags |= (1 << shift)
+#define GET_FLAG(cpu,shift) (cpu->registers.flags >> shift) & 1
 
 
 struct registers
@@ -17,10 +22,7 @@ struct registers
     uint32_t g;
     uint32_t h;
     uint32_t i;
-    union {
-        uint32_t asint;
-        bool exit_to_system;
-    } flags;
+    uint32_t flags;
     uint32_t unused0;
     uint32_t unused1;
     uint32_t unused2;
@@ -30,10 +32,20 @@ struct registers
 
 };
 
+struct debug_settings 
+{
+    bool log_loading;
+    bool log_opcode_instructions;
+    bool log_opcode_arguments;
+    bool log_errors;
+};
+
 struct cpu
 {
     struct registers registers;
     struct memory memory;
+    struct debug_settings debug_settings;
+    long i;
 };
 
 struct cpu * cpu_init(char * filename);

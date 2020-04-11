@@ -3,7 +3,7 @@ CFLAGS=
 
 OBJECT_DIR=object
 
-_OBJ = cpu main memory
+_OBJ = cpu main memory cpu_operation
 OBJ = $(patsubst %,$(OBJECT_DIR)/%.o,$(_OBJ))
 
 $(OBJECT_DIR)/%.o: src/%.c

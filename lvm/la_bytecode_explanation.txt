@@ -1,0 +1,22 @@
+01 0d 01000000 # A = 1
+01 1d 00000000 # B = 0
+01 2d 01000000 # C = 1
+
+# We're at 0x12 
+# C = A + B
+
+01 20
+06 21 01
+
+# A = B
+01 01
+# B = C
+01 12
+
+# Output C
+02 02
+
+# Execute C - 0x1000 (0x1000 is a limit)
+05 d1 00100000 02
+# If C is smaller, (the result is negative) jump to 0x12, 
+04 0d 12000000 84
