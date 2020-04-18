@@ -5,6 +5,8 @@
 #define OPCODE_JUMP_CONDITION 4
 #define OPCODE_BINARY_OPERATION_NOCHANGE 5
 #define OPCODE_BINARY_OPERATION 6
+#define OPCODE_IN 7
+#define OPCODE_OUT 8
 
 
 
@@ -16,4 +18,6 @@ const char opcode_args[256][4] = {
     {1,2,0,0}, // OPCODE_JUMP_CONDITION
     {1,1,2,0}, // OPCODE_BINARY_OPERATOR_NOCHANGE
     {1,1,2,0}, // OPCODE_BINARY_OPERATOR
+    {1,1,0,0}, // OPCODE_IN
+    {1,1,0,0}, // OPCODE_OUT
 };

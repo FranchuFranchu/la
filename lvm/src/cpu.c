@@ -10,16 +10,17 @@
 #include "logging.h"
 #include "opcodes.h"
 #include "operand_prefixes.h"
+#include "ioport.h"
 
-struct cpu * cpu_init(char * filename) 
+struct cpu * cpu_init(const char * filename) 
 {
     struct cpu * cpu = malloc(sizeof(struct cpu));
 
     // All registers initialized to zero
     memset(cpu, 0, sizeof(struct cpu));
 
-    //cpu->debug_settings.log_opcode_arguments = true;
-    //cpu->debug_settings.log_opcode_instructions = true;
+    cpu->debug_settings.log_opcode_arguments = true;
+    cpu->debug_settings.log_opcode_instructions = true;
 
 
 
@@ -33,6 +34,10 @@ struct cpu * cpu_init(char * filename)
     }
 
     // Copy file contents to memory to memory
+    uint32_t * code_start = malloc(4);
+
+    fread(code_start, 4, 1, data_file);
+    fseek(data_file, *code_start, SEEK_SET);
 
     int c = 0;
     int index = 0;
@@ -101,6 +106,19 @@ uint32_t * cpu_get_pointer_to_argument(struct cpu * cpu, char nibble) {
         if (nibble ==  OPERAND_SPECIAL_IMMEDIATE) 
         {  
             return value;
+        }
+        else if (nibble == OPERAND_MEMORY_ABSOLUTE) 
+        {
+
+            return  memory_get_dword(&cpu->memory, *value);
+        }
+        else if (nibble == OPERAND_MEMORY_RELATIVE) 
+        {
+            // It's not a problem if it overflows
+            uint32_t mem_location = cpu->start_of_this_instruction + *value;
+            return  memory_get_dword(&cpu->memory, mem_location);
+
+
         }
         else 
         {
@@ -209,9 +227,19 @@ void cpu_tick(struct cpu * cpu)
         case OPCODE_BINARY_OPERATION:;
             result = cpu_do_operation(cpu, *operators[0], *operators[1], *operators[2]);
             *operators[1] = result;
+            break;
 
         case OPCODE_BINARY_OPERATION_NOCHANGE:;
             result = cpu_do_operation(cpu, *operators[0], *operators[1], *operators[2]);
+            break;
+        case OPCODE_IN:
+            *operators[1] = ioport_in(cpu, *operators[0]);
+            break;
+        case OPCODE_OUT:
+            ioport_out(cpu, *operators[1], *operators[0]);
+            break;
+        default:
+            printf("%s\n", "Invalid instruction!");
 
     }
 

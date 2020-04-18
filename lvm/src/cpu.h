@@ -40,15 +40,25 @@ struct debug_settings
     bool log_errors;
 };
 
+struct io_registers
+{
+    uint32_t stack_bottom;  
+    uint32_t stack_current;
+    uint32_t stack_top;
+    uint32_t descriptor_table;
+};
+
 struct cpu
 {
     struct registers registers;
+    struct io_registers io_registers;
     struct memory memory;
     struct debug_settings debug_settings;
+    uint32_t start_of_this_instruction;
     long i;
 };
 
-struct cpu * cpu_init(char * filename);
+struct cpu * cpu_init(const char * filename);
 void cpu_run(struct cpu * cpu);
 void cpu_tick(struct cpu * cpu);
 
