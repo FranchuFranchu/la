@@ -11,6 +11,7 @@ Welcome to La's documentation!
    :caption: Contents:
 
    include/lac_file_structure.rst
+   include/target_language.rst
 
 
 

@@ -7,6 +7,8 @@
 uint32_t cpu_do_operation(struct cpu * cpu, int n1, int n2, enum operation operation) {
     long result;
     switch(operation) {
+        case OPERATION_NONE:;
+            break;
         case OPERATION_ADD:;
             result = n1 + n2;
             if (result > UINT32_MAX) {

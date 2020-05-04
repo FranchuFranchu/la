@@ -29,7 +29,7 @@ void memory_set_char(struct memory * memory, uint32_t index, char c) {
     subpage->values[index & 0x3ff] = c;
 }
 
-char *  memory_get_char(struct memory * memory, uint32_t index) {
+uint8_t *  memory_get_char(struct memory * memory, uint32_t index) {
     struct memory_superpage * superpage;
     if ((superpage = memory->superpages[index >> 22 & 0x3ff]) == NULL) {
         // If page not allocated it means the value is 0

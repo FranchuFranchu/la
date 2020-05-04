@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from enum import Enum
 import re
-import math 
+import math
 
 
 class LVMOpcode(Enum):
@@ -36,6 +36,7 @@ class LVMArgumentTypes(Enum):
 
     COMPILER_LABEL = 0x100
     COMPILER_ARGUMENT_LITERAL_BYTE = 0x101
+    COMPILER_VARIABLE = 0x102
 
 LVMByteArgumentCount = {
     LVMArgumentTypes.MEMORY_RELATIVE: 4,
@@ -56,7 +57,10 @@ class LVMLabel(LVMStatement):
         self.name = name
 
 class LVMCompilableStatement(LVMStatement):
-    """docstring for LVMCompilableStatement"""
+    """
+    docstring for LVMCompilableStatement
+    """
+    
     args: List[Tuple[LVMArgumentTypes, object]]
     opcode: LVMOpcode
 
@@ -65,7 +69,7 @@ class LVMCompilableStatement(LVMStatement):
         super(LVMCompilableStatement, self).__init__()
         self.args = args
         self.opcode = opcode
-    
+
     def compile(self, pending_labels):
         opcode = self.opcode.value.to_bytes(1, byteorder="little")
 
@@ -77,9 +81,9 @@ class LVMCompilableStatement(LVMStatement):
             argsize = LVMByteArgumentCount.get(argtype.value) or 0
 
             if argtype == LVMArgumentTypes.COMPILER_LABEL:
-                pending_labels[argval] = len(opcode) +  len(argument_types) + len(args_place)
+                pending_labels[argval] = len(opcode) + len(argument_types) + len(args_place)
                 argtype = LVMArgumentTypes.SPECIAL_IMMEDIATE
-                argval = 0                
+                argval = 0
 
             argument_types[i//2] |= (argtype).value << ((i % 2) * 4)
 
@@ -93,12 +97,12 @@ class LVMCompilableStatement(LVMStatement):
             elif argval is None:
                 pass
             else:
-                raise ValueError()
+                raise ValueError("Unknown argument type/value pair")
             i += 1
         return opcode + argument_types+ args_place
 
 
-    
+
 
 class LVMCompiler(object):
     """docstring for LVMCompiler"""
@@ -185,4 +189,3 @@ class LVMCompiler(object):
                 args,
             ))
         return self
-

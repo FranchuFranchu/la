@@ -43,7 +43,7 @@ struct cpu * cpu_init(const char * filename)
     int index = 0;
     while(1)  
     {
-        int c = fgetc(data_file);
+        c = fgetc(data_file);
         if (c == EOF)
         {
             break;
@@ -71,12 +71,6 @@ void cpu_run(struct cpu * cpu)
     }
 }
 
-int cpu_get_argument_count(int instruction) 
-{
-    // Unimplemented
-    //return opcode_argcount[instruction];
-}
-
 int cpu_next_instruction(struct cpu * cpu) 
 {
     int index = cpu->registers.instruction_pointer;
@@ -92,7 +86,7 @@ uint32_t * cpu_get_pointer_to_argument(struct cpu * cpu, char nibble) {
         
         return reg;   
     }
-    else if (nibble <= OPERAND_HIGHEST_REGISTER & nibble >= 0) 
+    else if ((nibble <= OPERAND_HIGHEST_REGISTER) && (nibble >= 0)) 
     {
         uint32_t * reg = (uint32_t*)(&cpu->registers)+(nibble*4);
         
@@ -136,6 +130,7 @@ uint32_t * cpu_get_pointer_to_argument(struct cpu * cpu, char nibble) {
         printf("Invalid argument passed to cpu_get_pointer_to_argument.\n");
         exit(-1);
     }
+    return malloc(4); // Shouldn't happen
 }
 
 uint32_t * cpu_parse_argument(struct cpu * cpu, char type_nibble, char expected_argument_type) {

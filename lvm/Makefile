@@ -1,8 +1,8 @@
-CC=gcc
+CC=gcc -Wall
 CFLAGS=
 
 PROG_ARGS=../la_generated_bytecode.lac
-PROG_NAME=lvm
+PROG_NAME=lavm
 
 OBJECT_DIR=object
 
@@ -20,5 +20,7 @@ all: $(OBJ) link
 run: all
 	./$(PROG_NAME) $(PROG_ARGS)
 
+clean:
+	rm -r object/*
 
 

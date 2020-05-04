@@ -1,14 +1,14 @@
 from typing import List, Tuple
 
 class LaVariable:
-    value: None 
+    value: None
     def __la_eq__(self, other):
         return other.value == self.value
-
+        
 class LaArgument:
     mandatory: bool
     name: str
-    consume: int 
+    consume: int
     def __init__(self, mandatory = True, name = "", consume = 1):
         self.mandatory = mandatory
         self.name = name
@@ -35,7 +35,7 @@ class LaFunction(LaVariable):
                         break
         if len(free_arguments) != 0:
             raise FuckingError
-        self.func(final_args)   
+        self.func(final_args)
 
 def LaFunctionDecorator(*args, **kwargs):
     def _internal_decorator(func):
@@ -71,6 +71,8 @@ class LaInteger(LaVariable):
             return LaInteger(self.value ** other.value)
     def __la_str__(self):
         return str(self.value)
+    def __str__(self):
+        return str(self.value)
 
 class LaBoolean(LaVariable):
     value: bool
@@ -92,5 +94,3 @@ class LaBuiltins:
     @LaFunctionDecorator()
     def input(args):
         pass
-
-        
