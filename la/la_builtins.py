@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from .LVMCompiler import LaCompilerBatchMacro, LVMCompilableStatement, LVMOpcode, LVMArgumentTypes
 
 class LaVariable:
     value: None
@@ -94,3 +95,9 @@ class LaBuiltins:
     @LaFunctionDecorator()
     def input(args):
         pass
+
+la_builtin_macros = {
+    "print": LaCompilerBatchMacro([
+        LVMCompilableStatement(LVMOpcode.DEBUG_DUMP_OPERATOR_0, [(LVMArgumentTypes.REGISTER_A, None)])
+    ], [(LVMArgumentTypes.REGISTER_A, None)])
+}

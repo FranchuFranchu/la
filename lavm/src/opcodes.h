@@ -7,7 +7,13 @@
 #define OPCODE_BINARY_OPERATION 6
 #define OPCODE_IN 7
 #define OPCODE_OUT 8
+#define OPCODE_PUSH 9
+#define OPCODE_POP 10
+#define OPCODE_CALL 11
+#define OPCODE_RET 12
 
+#ifndef OPCODES_H
+#define OPCODES_H
 
 
 const char opcode_args[256][4] = {
@@ -20,4 +26,11 @@ const char opcode_args[256][4] = {
     {1,1,2,0}, // OPCODE_BINARY_OPERATOR
     {1,1,0,0}, // OPCODE_IN
     {1,1,0,0}, // OPCODE_OUT
+    {1,0,0,0}, // OPCODE_PUSH
+    {1,0,0,0}, // OPCODE_POP
+    {1,0,0,0}, // OPCODE_CALL
+    {1,0,0,0}, // OPCODE_RET
 };
+
+
+#endif // OPCODES_H

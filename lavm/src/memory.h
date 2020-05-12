@@ -21,6 +21,7 @@ struct memory
 };
 
 void memory_set_char(struct memory * memory, uint32_t index, char c);
+void memory_set_dword(struct memory * memory, uint32_t index, uint32_t c);
 uint8_t * memory_get_char(struct memory * memory, uint32_t index);
 uint32_t * memory_get_dword(struct memory * memory, uint32_t index);
 

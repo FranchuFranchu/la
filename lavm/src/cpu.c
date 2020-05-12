@@ -5,6 +5,7 @@
 
 #include "cpu.h"
 #include "cpu_operation.h"
+#include "cpu_stack.h"
 #include "flags.h"
 #include "memory.h"
 #include "logging.h"
@@ -56,6 +57,9 @@ struct cpu * cpu_init(const char * filename)
     }
 
     fclose(data_file);
+
+    cpu->io_registers.stack_current = 0xfffffffc;
+
     return cpu;
 }
 
@@ -232,6 +236,18 @@ void cpu_tick(struct cpu * cpu)
             break;
         case OPCODE_OUT:
             ioport_out(cpu, *operators[1], *operators[0]);
+            break;
+        case OPCODE_PUSH:
+            cpu_stack_push(cpu, *operators[0]);
+            break;
+        case OPCODE_POP:
+            *operators[0] = cpu_stack_pop(cpu);
+            break;
+        case OPCODE_CALL:
+            cpu_stack_push(cpu, cpu->registers.instruction_pointer);
+            break;
+        case OPCODE_RET:
+            cpu->registers.instruction_pointer = cpu_stack_pop(cpu);
             break;
         default:
             printf("%s\n", "Invalid instruction!");

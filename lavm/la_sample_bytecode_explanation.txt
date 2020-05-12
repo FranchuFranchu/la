@@ -1,3 +1,5 @@
+# Fibonacci program
+
 04000000 # Program starts at 0x4
 
 01 0d 01000000 # A = 1

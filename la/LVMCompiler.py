@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 from enum import Enum
 import re
 import math
@@ -14,6 +14,10 @@ class LVMOpcode(Enum):
     BINARY_OPERATION = 6
     IN = 7
     OUT = 8
+    PUSH = 9
+    POP = 10
+    CALL = 11
+    RETURN = 12
 
 class LVMArgumentTypes(Enum):
     REGISTER_A = 1
@@ -37,6 +41,7 @@ class LVMArgumentTypes(Enum):
     COMPILER_LABEL = 0x100
     COMPILER_ARGUMENT_LITERAL_BYTE = 0x101
     COMPILER_VARIABLE = 0x102
+    COMPILER_IN_STACK = 0x103
 
 LVMByteArgumentCount = {
     LVMArgumentTypes.MEMORY_RELATIVE: 4,
@@ -47,8 +52,53 @@ LVMByteArgumentCount = {
 
 class LVMStatement():
     pass
-    def fromstring(s):
-        s = s.split(' ')
+
+class LaCompilerBatchBytecode(LVMStatement):
+    bytecode: List[LVMStatement]
+
+    def __init__(self):
+        self.bytecode = []
+
+    # returns bytes object
+    def compile(self):
+        return LVMCompiler(self.bytecode).compile()
+
+class LaCompilerBatchMacro(LaCompilerBatchBytecode):
+    """Class responsible for handling data"""
+    has_args:      List[Tuple[LVMArgumentTypes, object]]
+    requires_args: List[Tuple[LVMArgumentTypes, object]]
+
+    def __init__(self, bytecode: list, requires_args):
+        self.has_args = []
+        self.bytecode = bytecode
+        self.requires_args = requires_args
+
+
+    def copy(self, has_args):
+        n =  type(self)(bytecode=self.bytecode,requires_args=self.requires_args)
+        n.has_args = has_args
+        return n
+
+    def compile(self, labels_to_fill):
+        print(self.has_args, self.requires_args)
+        assert len(self.has_args) == len(self.requires_args)
+
+        final_bytecode = []
+
+        for has, requires in zip(self.has_args, self.requires_args):
+            if has == requires:
+                continue
+            final_bytecode.append(LVMCompilableStatement(LVMOpcode.PUSH, [requires]))
+            final_bytecode.append(LVMCompilableStatement(LVMOpcode.MOV, [has, requires]))
+
+        final_bytecode.extend(self.bytecode)
+
+        for has, requires in list(zip(self.has_args, self.requires_args))[::-1]:
+            if has == requires:
+                continue
+            final_bytecode.append(LVMCompilableStatement(LVMOpcode.POP, [requires]))
+
+        return LVMCompiler(final_bytecode).compile_code()
 
 
 class LVMLabel(LVMStatement):
@@ -107,9 +157,9 @@ class LVMCompilableStatement(LVMStatement):
 class LVMCompiler(object):
     """docstring for LVMCompiler"""
     statements: List[LVMStatement]
-    def __init__(self):
+    def __init__(self, statements = []):
         super(LVMCompiler, self).__init__()
-        self.statements = []
+        self.statements = statements
 
     def compile_code(self):
         pending_labels = {}

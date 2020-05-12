@@ -6,7 +6,7 @@ PROG_NAME=lavm
 
 OBJECT_DIR=object
 
-_OBJ = cpu main memory cpu_operation ioport
+_OBJ = cpu main memory cpu_operation ioport cpu_stack
 OBJ = $(patsubst %,$(OBJECT_DIR)/%.o,$(_OBJ))
 
 $(OBJECT_DIR)/%.o: src/%.c

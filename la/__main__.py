@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict, Callable
 from lark import Lark, Tree, Token
 
 from la.parse_tabs import tabs_to_codeblocks
-from la.la_builtins import LaBuiltins, LaInteger, LaBoolean, LaString, LaFunction, LaArgument
+from la.la_builtins import LaBuiltins, LaInteger, LaBoolean, LaString, LaFunction, LaArgument, la_builtin_macros
 import la.errors as errors
 from la.LVMCompiler import LVMCompiler, LVMArgumentTypes, LVMCompilableStatement, LVMOpcode
 
@@ -19,9 +19,23 @@ class LaCompilerEnviroment(object):
         self.vars_where = dict()
 
     def alloc_var(self, varname):
-        self.vars_where[varname] = (LVMArgumentTypes.REGISTER_A, None)
+
+        valid_place = None
+        for k in list(LVMArgumentTypes):
+            if k.name.startswith("REGISTER_") and k not in [i[0] for i in self.vars_where.values()]:
+                print(k)
+                valid_place = (k, None)
+                break
+
+        if valid_place is None:
+            raise NotImplementedError
+
+        self.vars_where[varname] = valid_place
         return self.vars_where[varname]
 
+    def free_var(self, varname):
+        del self.vars_where[varname]
+        return self.vars_where[varname]
         
 
 grammar = open("la/grammar.lark", "r").read()
@@ -52,19 +66,16 @@ precedence = {
 
 }
 
-class LaCompilerMacroFixedBytecode:
-    func: Callable
-    requires_args: List[LVMArgumentTypes]
-    bytecode: LVMCompiler
-    def compile(args):
-        return LVMCompiler.compile()
-
-
-
 
 def executeFunction(env, function_name, args):
-    if function_name == "print":
-        env.compiler.statements.append(LVMCompilableStatement(LVMOpcode.DEBUG_DUMP_OPERATOR_0, [(LVMArgumentTypes.REGISTER_A, None)]))
+    print(args)
+    assert args.data == "function_args"
+    has_args = []
+    for i in args.children[0].children:
+        has_args.append(env.vars_where[str(i)])
+
+    f = la_builtin_macros[function_name].copy(has_args)
+    env.compiler.statements.append(f)
 
 def evaluate(tree: Tree, env: LaCompilerEnviroment):
 

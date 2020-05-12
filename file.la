@@ -1,1 +1,8 @@
-print(42)
+a = 42
+b = 12
+f = 314
+hello = 512
+print(b)
+print(f)
+print(hello)
+print(a)
