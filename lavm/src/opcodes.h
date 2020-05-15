@@ -11,6 +11,9 @@
 #define OPCODE_POP 10
 #define OPCODE_CALL 11
 #define OPCODE_RET 12
+#define OPCODE_SYSTEM_CALL 13
+#define OPCODE_MODE_64BIT 14
+#define OPCODE_MODE_32BIT 15
 
 #ifndef OPCODES_H
 #define OPCODES_H
@@ -30,6 +33,7 @@ const char opcode_args[256][4] = {
     {1,0,0,0}, // OPCODE_POP
     {1,0,0,0}, // OPCODE_CALL
     {1,0,0,0}, // OPCODE_RET
+    {2,1,0,0}, // OPCODE_SYSTEM_CALL
 };
 
 

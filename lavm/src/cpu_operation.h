@@ -12,6 +12,6 @@ enum operation {
     OPERATION_SUB = 2
 };
 
-uint32_t cpu_do_operation(struct cpu * cpu, int n1, int n2, enum operation operation);
+uint64_t cpu_do_operation(struct cpu * cpu, uint64_t n1, uint64_t n2, enum operation operation);
 
 #endif // CPU_OPERATION_H

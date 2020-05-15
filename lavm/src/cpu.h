@@ -13,22 +13,22 @@
 
 struct registers
 {
-    uint32_t a;
-    uint32_t b;
-    uint32_t c;
-    uint32_t d;
-    uint32_t e;
-    uint32_t f;
-    uint32_t g;
-    uint32_t h;
-    uint32_t i;
-    uint32_t flags;
-    uint32_t unused0;
-    uint32_t unused1;
-    uint32_t unused2;
-    uint32_t unused3;
-    uint32_t unused4;
-    uint32_t instruction_pointer;
+    uint64_t a;
+    uint64_t b;
+    uint64_t c;
+    uint64_t d;
+    uint64_t e;
+    uint64_t f;
+    uint64_t g;
+    uint64_t h;
+    uint64_t i;
+    uint64_t flags;
+    uint64_t unused0;
+    uint64_t unused1;
+    uint64_t unused2;
+    uint64_t unused3;
+    uint64_t unused4;
+    uint64_t instruction_pointer;
 
 };
 
@@ -42,10 +42,10 @@ struct debug_settings
 
 struct io_registers
 {
-    uint32_t stack_bottom;  
-    uint32_t stack_current;
-    uint32_t stack_top;
-    uint32_t descriptor_table;
+    uint64_t stack_bottom;  
+    uint64_t stack_current;
+    uint64_t stack_top;
+    uint64_t descriptor_table;
 };
 
 struct cpu
@@ -54,8 +54,9 @@ struct cpu
     struct io_registers io_registers;
     struct memory memory;
     struct debug_settings debug_settings;
-    uint32_t start_of_this_instruction;
+    uint64_t start_of_this_instruction;
     long i;
+    char bits_mode;
 };
 
 struct cpu * cpu_init(const char * filename);

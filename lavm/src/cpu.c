@@ -12,6 +12,7 @@
 #include "opcodes.h"
 #include "operand_prefixes.h"
 #include "ioport.h"
+#include "system_calls/entry_point.h"
 
 struct cpu * cpu_init(const char * filename) 
 {
@@ -20,10 +21,14 @@ struct cpu * cpu_init(const char * filename)
     // All registers initialized to zero
     memset(cpu, 0, sizeof(struct cpu));
 
+
     cpu->debug_settings.log_opcode_arguments = true;
     cpu->debug_settings.log_opcode_instructions = true;
+    cpu->debug_settings.log_errors = true;  
+    // cpu->memory.debug_settings.log_writes = true;
+    // cpu->memory.debug_settings.log_reads = true;
 
-
+    cpu->io_registers.stack_current = 0UL-1;
 
     FILE * data_file = fopen(filename, "r");
     if (data_file == NULL) 
@@ -37,11 +42,14 @@ struct cpu * cpu_init(const char * filename)
     // Copy file contents to memory to memory
     uint32_t * code_start = malloc(4);
 
+
     fread(code_start, 4, 1, data_file);
     fseek(data_file, *code_start, SEEK_SET);
 
-    int c = 0;
+    int c = 0x12;
     int index = 0;
+
+
     while(1)  
     {
         c = fgetc(data_file);
@@ -58,7 +66,8 @@ struct cpu * cpu_init(const char * filename)
 
     fclose(data_file);
 
-    cpu->io_registers.stack_current = 0xfffffffc;
+    return cpu;
+
 
     return cpu;
 }
@@ -77,44 +86,46 @@ void cpu_run(struct cpu * cpu)
 
 int cpu_next_instruction(struct cpu * cpu) 
 {
-    int index = cpu->registers.instruction_pointer;
+    uint64_t index = cpu->registers.instruction_pointer;
     cpu->registers.instruction_pointer++;
-    int r = *memory_get_char(&(cpu->memory), index);
-    return r & 0xFF;
+    uint8_t r = memory_get_char(&cpu->memory, index);
+    return r;
 }
 
-uint32_t * cpu_get_pointer_to_argument(struct cpu * cpu, char nibble) {
+uint64_t cpu_get_value_of_argument(struct cpu * cpu, char nibble, uint64_t * operand_extra_loc) {
     if (nibble == OPERAND_REGISTER_FLAGS) {
 
-        uint32_t * reg = &cpu->registers.flags;
+        uint64_t reg = cpu->registers.flags;
         
         return reg;   
     }
     else if ((nibble <= OPERAND_HIGHEST_REGISTER) && (nibble >= 0)) 
     {
-        uint32_t * reg = (uint32_t*)(&cpu->registers)+(nibble*4);
+        uint64_t * reg_ptr = ((uint64_t*)(&cpu->registers)+((nibble - 1)));
+        uint64_t reg = *reg_ptr;
         
         return reg;
     } 
     else if (nibble <= OPERAND_HIGHEST_DWORDARG) 
     {
-        int index = cpu->registers.instruction_pointer;
+        uint64_t index = cpu->registers.instruction_pointer;
+        *operand_extra_loc = index;
         cpu->registers.instruction_pointer+=4;
-        uint32_t * value = memory_get_dword(&cpu->memory, index);
+        uint64_t provided_argument = memory_get_dword(&cpu->memory, index);
         if (nibble ==  OPERAND_SPECIAL_IMMEDIATE) 
         {  
-            return value;
+            return provided_argument;
         }
         else if (nibble == OPERAND_MEMORY_ABSOLUTE) 
         {
 
-            return  memory_get_dword(&cpu->memory, *value);
+            return  memory_get_qword(&cpu->memory, provided_argument);
         }
         else if (nibble == OPERAND_MEMORY_RELATIVE) 
         {
             // It's not a problem if it overflows
-            uint32_t mem_location = cpu->start_of_this_instruction + *value;
-            return  memory_get_dword(&cpu->memory, mem_location);
+            uint64_t mem_location = cpu->start_of_this_instruction + provided_argument;
+            return  memory_get_qword(&cpu->memory, mem_location);
 
 
         }
@@ -129,119 +140,193 @@ uint32_t * cpu_get_pointer_to_argument(struct cpu * cpu, char nibble) {
         printf("Unimplemented. TODO. (2)\n");
         exit(-1);
     }
-    else 
-    {
-        printf("Invalid argument passed to cpu_get_pointer_to_argument.\n");
-        exit(-1);
-    }
-    return malloc(4); // Shouldn't happen
+    printf("Invalid argument passed to cpu_get_value_of_argument: %hhx.\n", nibble);
+    exit(-1);
 }
 
-uint32_t * cpu_parse_argument(struct cpu * cpu, char type_nibble, char expected_argument_type) {
-    uint32_t * ret;
+
+uint64_t cpu_parse_argument(struct cpu * cpu, char type_nibble, char expected_argument_type, uint64_t * operand_extra_loc) {
+    uint64_t ret;
 
     switch(expected_argument_type) {
         case 1:;
-            ret = cpu_get_pointer_to_argument(cpu, type_nibble);
+            ret = cpu_get_value_of_argument(cpu, type_nibble, operand_extra_loc);
             break;
         case 2:;
-            int index = cpu->registers.instruction_pointer;
+            uint64_t index = cpu->registers.instruction_pointer;
             cpu->registers.instruction_pointer++;
-            char b = *memory_get_char(&cpu->memory, index);
-            ret = malloc(4);
-            *ret = b;
-            *ret = *ret & 0xFF;
+            return memory_get_char(&cpu->memory, index);
             break;
         default:;
-            LOG_ERROR("Error: \n");
-            ret = malloc(4);
+            LOG_ERROR("Error: Wrong expected type\n");
+            exit(-1);
 
 
 
     }
-    LOG_OPCODE_ARGUMENT(" Argument: Expect: %d, Type: 0x%x, Value: %x\n", expected_argument_type, type_nibble, *ret);
+    LOG_OPCODE_ARGUMENT(" Argument: Expect: %d, Type: 0x%x, Value: %lx\n", expected_argument_type, type_nibble, ret);
     return ret;
 
 }
 
+void cpu_set_operand(struct cpu * cpu,  uint8_t nibble, uint64_t operand_extra_loc, uint64_t value) 
+{
+    if (nibble == OPERAND_REGISTER_FLAGS) {
+
+        cpu->registers.flags = value;
+        return;
+    }
+    else if (nibble <= OPERAND_HIGHEST_REGISTER)
+    {
+        uint64_t * reg_ptr = ((uint64_t*)&cpu->registers)+((nibble - 1));
+        *reg_ptr = value;
+        return;
+    } 
+    else if (nibble <= OPERAND_HIGHEST_DWORDARG) 
+    {
+        uint64_t provided_argument = memory_get_dword(&cpu->memory, operand_extra_loc);
+        if (nibble ==  OPERAND_SPECIAL_IMMEDIATE) 
+        {  
+            return;
+        }
+        else if (nibble == OPERAND_MEMORY_ABSOLUTE) 
+        {
+            memory_set_dword(&cpu->memory, operand_extra_loc, provided_argument);
+            return;
+        }
+        else if (nibble == OPERAND_MEMORY_RELATIVE) 
+        {
+            // It's not a problem if it overflows
+            uint64_t mem_location = cpu->start_of_this_instruction + provided_argument;
+            memory_set_dword(&cpu->memory, mem_location, provided_argument);
+
+
+            return;
+        }
+        else 
+        {
+            printf("Unimplemented. TODO. (1)\n");
+        }
+    } 
+    else if (nibble <= OPERAND_HIGHEST_DWORD_CHAR) 
+    {
+        errno = 1;
+        printf("Unimplemented. TODO. (2)\n");
+        exit(-1);
+    }
+    printf("Invalid argument passed to cpu_set_operand: %hhx\n", nibble);
+    exit(-1);
+    
+    
+}
+
 void cpu_tick(struct cpu * cpu) 
 {  
-    int index = cpu->registers.instruction_pointer;
-    int instruction = cpu_next_instruction(cpu);
+    uint64_t index = cpu->registers.instruction_pointer;
+    uint8_t instruction = cpu_next_instruction(cpu);
     cpu->i++;
-    uint32_t * operators[4] = {0,0,0,0};
+    // Allocate space for the 4 operators
 
-    LOG_OPCODE_INSTRUCTION("Instruction %x at 0x%x:\n", instruction, index);
+    uint64_t * operand_values = calloc(4, sizeof(uint64_t));
+    uint64_t * operand_extra_loc = calloc(4, sizeof(uint64_t));
+    uint8_t * operand_types = calloc(4, sizeof(uint8_t));
+    uint8_t operand_count = 0;
 
+
+
+    LOG_OPCODE_INSTRUCTION("Instruction %x at 0x%lx:\n", instruction, index);
+
+    
     for (int i = 0; i < 2; ++i)
     {
         if (opcode_args[instruction][i*2] == 0) {
+            operand_count = i * 2;
             break;
         }
-        int index = cpu->registers.instruction_pointer;
+        uint64_t index = cpu->registers.instruction_pointer;
+
 
         // lower nibble
 
         char expected_argument_type = opcode_args[instruction][i*2];
 
-        char asbyte = *memory_get_char(&cpu->memory, index);
+        char asbyte = memory_get_char(&cpu->memory, index);
         if (expected_argument_type == 1) {
             cpu->registers.instruction_pointer++;
         }
-        operators[i*2] = cpu_parse_argument(cpu, asbyte & 0xF, expected_argument_type);
+
+        operand_values[i*2] = cpu_parse_argument(cpu, asbyte & 0xF, expected_argument_type, &operand_extra_loc[i*2]);
+        if (expected_argument_type == 1) 
+        {
+            operand_types[i*2] = asbyte & 0xF;   
+        } 
+        else 
+        {
+            operand_types[i*2] = 0xFF; // Mark as read-only
+        }
 
         // higher nibble
 
         if (opcode_args[instruction][i*2+1] == 0) {
+            operand_count = i * 2 + 1;
             break;
         }
 
         expected_argument_type = opcode_args[instruction][i*2+1];
-        operators[i*2+1] = cpu_parse_argument(cpu, (asbyte >> 4) & 0xF, expected_argument_type);
+        operand_values[i*2+1] = cpu_parse_argument(cpu, (asbyte >> 4) & 0xF, expected_argument_type, &operand_extra_loc[i*2]);
+        
+        if (expected_argument_type == 1) 
+        {
+            operand_types[i*2+1] = (asbyte >> 4) & 0xF;   
+        } 
+        else 
+        {
+            operand_types[i*2+1] = 0xFF; // Mark as read-only
+        }
         
 
     }
-    uint32_t result;
+
+
     switch(instruction) {
         case OPCODE_EXIT_TO_SYSTEM:
             SET_FLAG(cpu,FLAG_EXIT);
             break;
         case OPCODE_MOV:
-            *operators[1] = *operators[0];
+            operand_values[1] = operand_values[0];
             break;
         case OPCODE_DEBUG_DUMP_OPERATOR_0:
-            printf("DEBUG: 0x%x = %d\n", *operators[0], *operators[0]);
+            printf("DEBUG: 0x%lx = %ld\n", operand_values[0], operand_values[0]);
             break;
         case OPCODE_JUMP:
-            cpu->registers.instruction_pointer = *operators[0];
+            cpu->registers.instruction_pointer = operand_values[0];
             break;
         case OPCODE_JUMP_CONDITION:;
-            char shift_value = *operators[1] & 0x7F;
+            char shift_value = operand_values[1] & 0x7F;
             bool flag_on = cpu->registers.flags >> shift_value & 1;
-            bool invert = *operators[1] & 0x80;
+            bool invert = operand_values[1] & 0x80;
             if (flag_on ^ invert) {
-                cpu->registers.instruction_pointer = *operators[0];;
+                cpu->registers.instruction_pointer = operand_values[0];;
             }
             break;
         case OPCODE_BINARY_OPERATION:;
-            result = cpu_do_operation(cpu, *operators[0], *operators[1], *operators[2]);
-            *operators[1] = result;
+            operand_values[1] = cpu_do_operation(cpu, operand_values[0], operand_values[1], operand_values[2]);
             break;
 
         case OPCODE_BINARY_OPERATION_NOCHANGE:;
-            result = cpu_do_operation(cpu, *operators[0], *operators[1], *operators[2]);
+            cpu_do_operation(cpu, operand_values[0], operand_values[1], operand_values[2]);
             break;
         case OPCODE_IN:
-            *operators[1] = ioport_in(cpu, *operators[0]);
+            operand_values[1] = ioport_in(cpu, operand_values[0]);
             break;
         case OPCODE_OUT:
-            ioport_out(cpu, *operators[1], *operators[0]);
+            ioport_out(cpu, operand_values[1], operand_values[0]);
             break;
         case OPCODE_PUSH:
-            cpu_stack_push(cpu, *operators[0]);
+            cpu_stack_push(cpu, operand_values[0]);
             break;
         case OPCODE_POP:
-            *operators[0] = cpu_stack_pop(cpu);
+            operand_values[0] = cpu_stack_pop(cpu);
             break;
         case OPCODE_CALL:
             cpu_stack_push(cpu, cpu->registers.instruction_pointer);
@@ -249,9 +334,33 @@ void cpu_tick(struct cpu * cpu)
         case OPCODE_RET:
             cpu->registers.instruction_pointer = cpu_stack_pop(cpu);
             break;
+        case OPCODE_SYSTEM_CALL:
+            operand_values[1] = la_system_call(cpu, operand_values[0], operand_values[1]);
+            break;
+        case OPCODE_MODE_64BIT:
+            cpu->bits_mode = 64;
+            break;
+        case OPCODE_MODE_32BIT:
+            cpu->bits_mode = 32;
+            break;
+
         default:
             printf("%s\n", "Invalid instruction!");
 
     }
+
+    // Now, update the operand values
+    for(uint8_t i = 0; i < operand_count; i++) 
+    {
+        if (operand_types[i] == 0xFF) {
+            // Don't set
+            continue;
+        }
+        cpu_set_operand(cpu, operand_types[i], operand_extra_loc[i], operand_values[i]);
+    }
+
+    free(operand_types);
+    free(operand_values);
+    free(operand_extra_loc);
 
 }

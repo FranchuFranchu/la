@@ -4,7 +4,7 @@
 #include "cpu_operation.h"
 #include "flags.h"
 
-uint32_t cpu_do_operation(struct cpu * cpu, int n1, int n2, enum operation operation) {
+uint64_t cpu_do_operation(struct cpu * cpu, uint64_t n1, uint64_t n2, enum operation operation) {
     long result;
     switch(operation) {
         case OPERATION_NONE:;
@@ -28,5 +28,5 @@ uint32_t cpu_do_operation(struct cpu * cpu, int n1, int n2, enum operation opera
             break;
 
     }
-    return result & 0xFFFFFFF;
+    return result & 0xFFFFFFFFFFFFFFFF;
 }
