@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <ltdl.h>
 #include <string.h>
 
 #include "cpu.h"
 #include "cpu_operation.h"
 #include "cpu_stack.h"
+#include "elf_file_parsing.h"
 #include "flags.h"
 #include "memory.h"
 #include "logging.h"
@@ -21,14 +23,16 @@ struct cpu * cpu_init(const char * filename)
     // All registers initialized to zero
     memset(cpu, 0, sizeof(struct cpu));
 
+    cpu->libraries = hashmap_new();
 
-    cpu->debug_settings.log_opcode_arguments = true;
+
     cpu->debug_settings.log_opcode_instructions = true;
-    cpu->debug_settings.log_errors = true;  
+    cpu->debug_settings.log_opcode_arguments = true;
+
     // cpu->memory.debug_settings.log_writes = true;
     // cpu->memory.debug_settings.log_reads = true;
 
-    cpu->io_registers.stack_current = 0UL-1;
+    cpu->io_registers.stack_current = 0UL-8;
 
     FILE * data_file = fopen(filename, "r");
     if (data_file == NULL) 
@@ -36,38 +40,10 @@ struct cpu * cpu_init(const char * filename)
         char dest[256];
         snprintf(dest, 256, "Error loading file %s", filename);
         perror(dest);
-        return cpu;
+        exit(-1);
     }
 
-    // Copy file contents to memory to memory
-    uint32_t * code_start = malloc(4);
-
-
-    fread(code_start, 4, 1, data_file);
-    fseek(data_file, *code_start, SEEK_SET);
-
-    int c = 0x12;
-    int index = 0;
-
-
-    while(1)  
-    {
-        c = fgetc(data_file);
-        if (c == EOF)
-        {
-            break;
-        }
-        if (cpu->debug_settings.log_loading) {
-            printf("Loading %hhx at %d\n", c, index);
-        }
-        memory_set_char(&cpu->memory, index, c & 0xFF);
-        index++;
-    }
-
-    fclose(data_file);
-
-    return cpu;
-
+    elf_load_file(&cpu->memory, data_file);
 
     return cpu;
 }
@@ -155,7 +131,7 @@ uint64_t cpu_parse_argument(struct cpu * cpu, char type_nibble, char expected_ar
         case 2:;
             uint64_t index = cpu->registers.instruction_pointer;
             cpu->registers.instruction_pointer++;
-            return memory_get_char(&cpu->memory, index);
+            ret = memory_get_char(&cpu->memory, index);
             break;
         default:;
             LOG_ERROR("Error: Wrong expected type\n");
@@ -236,24 +212,21 @@ void cpu_tick(struct cpu * cpu)
 
     LOG_OPCODE_INSTRUCTION("Instruction %x at 0x%lx:\n", instruction, index);
 
-    
+    uint64_t argument_type_index = cpu->registers.instruction_pointer;
+    cpu->registers.instruction_pointer++;
+
     for (int i = 0; i < 2; ++i)
     {
         if (opcode_args[instruction][i*2] == 0) {
             operand_count = i * 2;
             break;
         }
-        uint64_t index = cpu->registers.instruction_pointer;
-
 
         // lower nibble
 
         char expected_argument_type = opcode_args[instruction][i*2];
 
-        char asbyte = memory_get_char(&cpu->memory, index);
-        if (expected_argument_type == 1) {
-            cpu->registers.instruction_pointer++;
-        }
+        char asbyte = memory_get_char(&cpu->memory, argument_type_index);
 
         operand_values[i*2] = cpu_parse_argument(cpu, asbyte & 0xF, expected_argument_type, &operand_extra_loc[i*2]);
         if (expected_argument_type == 1) 
@@ -275,6 +248,7 @@ void cpu_tick(struct cpu * cpu)
         expected_argument_type = opcode_args[instruction][i*2+1];
         operand_values[i*2+1] = cpu_parse_argument(cpu, (asbyte >> 4) & 0xF, expected_argument_type, &operand_extra_loc[i*2]);
         
+
         if (expected_argument_type == 1) 
         {
             operand_types[i*2+1] = (asbyte >> 4) & 0xF;   

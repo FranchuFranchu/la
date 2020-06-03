@@ -1,5 +1,7 @@
 from typing import List, Tuple, Callable
 from enum import Enum
+from hashlib import md5
+from dataclasses import dataclass, field
 import re
 import math
 
@@ -7,7 +9,7 @@ import math
 class LVMOpcode(Enum):
     EXIT_TO_SYSTEM = 0
     MOV = 1
-    DEBUG_DUMP_OPERATOR_0 = 2
+    DEBUG_DUMP_ARGUMENT_0 = 2
     JUMP = 3
     JUMP_CONDITION = 4
     BINARY_OPERATION_NOCHANGE = 5
@@ -65,10 +67,10 @@ class LaCompilerBatchBytecode(LVMStatement):
 
 class LaCompilerBatchMacro(LaCompilerBatchBytecode):
     """Class responsible for handling data"""
-    has_args:      List[Tuple[LVMArgumentTypes, object]]
-    requires_args: List[Tuple[LVMArgumentTypes, object]]
+    has_args:         List[Tuple[LVMArgumentTypes, object]]
+    requires_args:    List[Tuple[LVMArgumentTypes, object]]
 
-    def __init__(self, bytecode: list, requires_args):
+    def __init__(self, bytecode: list, requires_args, pass_to_compiler=None):
         self.has_args = []
         self.bytecode = bytecode
         self.requires_args = requires_args
@@ -98,7 +100,8 @@ class LaCompilerBatchMacro(LaCompilerBatchBytecode):
                 continue
             final_bytecode.append(LVMCompilableStatement(LVMOpcode.POP, [requires]))
 
-        return LVMCompiler(final_bytecode).compile_code()
+
+        return final_bytecode
 
 
 class LVMLabel(LVMStatement):
@@ -152,37 +155,83 @@ class LVMCompilableStatement(LVMStatement):
         return opcode + argument_types+ args_place
 
 
+    def __repr__(self):
+        return self.opcode.name + " " + " ".join(("({} {})".format(i[0].name, i[1]) for i in self.args))
 
 
+@dataclass
 class LVMCompiler(object):
     """docstring for LVMCompiler"""
-    statements: List[LVMStatement]
-    def __init__(self, statements = []):
-        super(LVMCompiler, self).__init__()
-        self.statements = statements
+    statements: List[LVMStatement]  = field(default_factory=list)
+    extra_data_at_the_end: List[Tuple[str, bytes]] = field(default_factory=list)
+    pending_labels: dict = field(default_factory=dict)
+    done_labels: dict = field(default_factory=dict)
+
 
     def compile_code(self):
-        pending_labels = {}
-        done_labels = {}
-        bytecode = bytes()
+        self.pending_labels = {}
+        self.done_labels = {}
+        bytecode = bytearray()
         for i in self.statements:
             this_pending_labels = {}
+
             if isinstance(i, LVMLabel):
-                done_labels[i.name] = len(bytecode)
+                self.done_labels[i.name] = len(bytecode)
                 continue
 
-            this_bytecode = i.compile(this_pending_labels)
+            elif isinstance(i, LaCompilerBatchMacro):
+                compiler = LVMCompiler()
+                code = i.compile([])
+                compiler.statements = code
+                print(code)
+                this_bytecode = compiler.compile_code()
+                this_pending_labels = compiler.pending_labels
+
+
+            else:
+                this_bytecode = i.compile(this_pending_labels)
+
             for k, v in this_pending_labels.items():
-                if k in done_labels:
+                if k in self.done_labels:
                     this_bytecode = bytearray(this_bytecode)
-                    this_bytecode[v:v+4] = done_labels[k].to_bytes(this_bytecode)
+                    this_bytecode[v:v+4] = self.done_labels[k].to_bytes(this_bytecode, byteorder='little')
                     this_bytecode = bytes(this_bytecode)
                 else:
-                    pending_labels[k] = v + len(bytecode)
+                    self.pending_labels[k] = v + len(bytecode)
 
             bytecode += this_bytecode
 
-        return bytecode
+
+        for k, v in self.pending_labels.items():
+            if k in self.done_labels:
+                this_bytecode = bytearray(this_bytecode)
+                this_bytecode[v:v+4] = self.done_labels[k].to_bytes(this_bytecode, byteorder='little')
+                this_bytecode = bytes(this_bytecode)
+            else:
+                self.pending_labels[k] = v + len(bytecode)
+
+        print("Compile")
+        bytecode += b'\x00'
+
+        for k, v in self.extra_data_at_the_end:
+            if k in self.pending_labels:
+                bytecode[self.pending_labels[k]:self.pending_labels[k]+4] = len(bytecode).to_bytes(4, byteorder='little')
+                del self.pending_labels[k]
+            bytecode += v
+
+        if len(self.pending_labels) != 0:
+            print("Warning: undefined labels " + ','.join(list(self.pending_labels.keys())))
+
+        return bytes(bytecode)
+
+    def add_data(self, data: bytes) -> str:
+        # Randomly generate label to avoid collisions
+        label = data + str(len(self.extra_data_at_the_end)).encode('utf-8')
+        label = md5(label).hexdigest()
+        self.extra_data_at_the_end.append((label, data))
+        return label
+
+
 
 
 

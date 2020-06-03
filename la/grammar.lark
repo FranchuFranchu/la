@@ -16,7 +16,7 @@ VARIABLE_NAME: LETTER ( LETTER | DIGIT | "_" )*
 
 start: codeblock
 
-codeblock: _WHITESPACE? "{" executable (";" executable)* "}"
+codeblock: _WHITESPACE? "{" executable (";" executable?)* "}"
 
 executable: [codeblock_prefix] codeblock 
     | [VARIABLE_NAME  _WHITESPACE? "=" _WHITESPACE?]  evaluatable

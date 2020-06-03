@@ -70,7 +70,7 @@ uint8_t * memory_get_location_of(struct memory * memory, uint64_t index)
 // Word size must be multiple of 8
 void memory_set_size(struct memory * memory, uint64_t index, uint64_t data_v, char word_size)
 {
-    LOG_MEMORY_READ("[WRITE] 0x%lx = 0x%lx\n", index, data_v);
+    LOG_MEMORY_WRITE("[WRITE] 0x%lx = 0x%lx\n", index, data_v);
     if (word_size % 8 != 0) {
         printf("Error: word_size must be multiple of 8!");
         exit(-1);
@@ -95,7 +95,7 @@ uint64_t memory_get_size(struct memory * memory, uint64_t index, char word_size)
     {
         result |= ((uint64_t)(*memory_get_location_of(memory, index + i)) << (i * 8));
     }
-    LOG_MEMORY_WRITE("[READ ] 0x%lx to 0x%lx = 0x%lx\n", index, index + word_size / 8, result);
+    LOG_MEMORY_READ("[READ ] 0x%lx to 0x%lx = 0x%lx\n", index, index + word_size / 8, result);
     return result;
 } 
 

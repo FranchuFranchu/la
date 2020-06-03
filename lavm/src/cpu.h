@@ -2,6 +2,7 @@
 #include <stdbool.h>
 
 #include "memory.h"
+#include "util_datatypes/hashmap.h"
 
 #ifndef CPU_H
 #define CPU_H
@@ -57,6 +58,7 @@ struct cpu
     uint64_t start_of_this_instruction;
     long i;
     char bits_mode;
+    map_t libraries;
 };
 
 struct cpu * cpu_init(const char * filename);

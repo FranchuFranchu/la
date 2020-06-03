@@ -8,12 +8,12 @@
 #define OPCODE_IN 7
 #define OPCODE_OUT 8
 #define OPCODE_PUSH 9
-#define OPCODE_POP 10
-#define OPCODE_CALL 11
-#define OPCODE_RET 12
-#define OPCODE_SYSTEM_CALL 13
-#define OPCODE_MODE_64BIT 14
-#define OPCODE_MODE_32BIT 15
+#define OPCODE_POP 0xa
+#define OPCODE_CALL 0xb
+#define OPCODE_RET 0xc
+#define OPCODE_SYSTEM_CALL 0xd
+#define OPCODE_MODE_64BIT 0xe
+#define OPCODE_MODE_32BIT 0xf
 
 #ifndef OPCODES_H
 #define OPCODES_H

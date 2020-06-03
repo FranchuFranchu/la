@@ -87,17 +87,8 @@ class LaString(LaVariable):
     def __la_str__(self):
         return str(self.value)
 
-class LaBuiltins:
-    @LaFunctionDecorator([LaArgument(name="value")])
-    def print(args):
-        print(args["value"].__la_str__())
-
-    @LaFunctionDecorator()
-    def input(args):
-        pass
-
 la_builtin_macros = {
     "print": LaCompilerBatchMacro([
-        LVMCompilableStatement(LVMOpcode.DEBUG_DUMP_OPERATOR_0, [(LVMArgumentTypes.REGISTER_A, None)])
+        LVMCompilableStatement(LVMOpcode.DEBUG_DUMP_ARGUMENT_0, [(LVMArgumentTypes.REGISTER_A, None)])
     ], [(LVMArgumentTypes.REGISTER_A, None)])
 }
